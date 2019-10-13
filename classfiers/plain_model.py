@@ -1,15 +1,10 @@
 import numpy as np
-
-try:
-	import tensorflow as tf
-except ImportError as error:
-	print("Import error: %s" % (error))
+import tensorflow as tf
 
 from aif360.algorithms import Transformer
 
 
 class PlainModel(Transformer):
-
 
 	def __init__(self,
 				 unprivileged_groups,
@@ -21,8 +16,7 @@ class PlainModel(Transformer):
 				 num_epochs=50,
 				 batch_size=128,
 				 classifier_num_hidden_units=200,
-				 classifier_num_hidden_layers=1,
-				 debias=True):
+				 classifier_num_hidden_layers=1):
 		super(PlainModel, self).__init__(
 			unprivileged_groups=unprivileged_groups,
 			privileged_groups=privileged_groups)
@@ -42,7 +36,6 @@ class PlainModel(Transformer):
 		self.batch_size = batch_size
 		self.classifier_num_hidden_units = classifier_num_hidden_units
 		self.classifier_num_hidden_layers = classifier_num_hidden_layers
-		self.debias = debias
 
 		self.features_dim = None
 		self.features_ph = None
@@ -60,7 +53,7 @@ class PlainModel(Transformer):
 			h=[]
 			b=[]
 			W=[]
-			for i in range(0,len(self.classifier_num_hidden_layers)):
+			for i in range(0,self.classifier_num_hidden_layers):
 
 				if i==0:
 					h.append(tf.nn.relu(tf.matmul(features, Wa) + ba))
@@ -68,17 +61,18 @@ class PlainModel(Transformer):
 					h.append(tf.nn.relu(tf.matmul(h[-1], W[-1]) + b[-1]))
 				h[-1]=tf.nn.dropout(h[-1], keep_prob=keep_prob)
 
-				b.append(tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='b%d'%(i+1)))
+				if i<self.classifier_num_hidden_layers-1:
 
-				W.append(W2 = tf.get_variable('W%d'%(i+1), [self.classifier_num_hidden_units, self.classifier_num_hidden_units],
-								 initializer=tf.contrib.layers.xavier_initializer()))
+					b.append(tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='b%d'%(i+1)))
 
+					W.append(tf.get_variable('W%d'%(i+1), [self.classifier_num_hidden_units, self.classifier_num_hidden_units],
+									 initializer=tf.contrib.layers.xavier_initializer()))
 
 			Wz = tf.get_variable('Wz', [self.classifier_num_hidden_units, 1],
 								 initializer=tf.contrib.layers.xavier_initializer())
 			bz = tf.Variable(tf.zeros(shape=[1]), name='bz')
 
-			pred_logit = tf.matmul(h1, W2) + b2
+			pred_logit = tf.matmul(h[-1], Wz) + bz
 			pred_label = tf.sigmoid(pred_logit)
 
 		return pred_label, pred_logit
@@ -100,15 +94,7 @@ class PlainModel(Transformer):
 		return pred_protected_attribute_label, pred_protected_attribute_logit
 
 	def fit(self, dataset):
-		"""Compute the model parameters of the fair classifier using gradient
-		descent.
 
-		Args:
-			dataset (BinaryLabelDataset): Dataset containing true labels.
-
-		Returns:
-			AdversarialDebiasing: Returns self.
-		"""
 		if self.seed is not None:
 			np.random.seed(self.seed)
 
@@ -131,41 +117,21 @@ class PlainModel(Transformer):
 			self.pred_labels, pred_logits = self._classifier_model(self.features_ph, self.features_dim, self.keep_prob)
 			pred_labels_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=self.true_labels_ph, logits=pred_logits))
 
-			if self.debias:
-				# Obtain adversary predictions and adversary loss
-				pred_protected_attributes_labels, pred_protected_attributes_logits = self._adversary_model(pred_logits, self.true_labels_ph)
-				pred_protected_attributes_loss = tf.reduce_mean(
-					tf.nn.sigmoid_cross_entropy_with_logits(labels=self.protected_attributes_ph, logits=pred_protected_attributes_logits))
-
 			# Setup optimizers with learning rates
 			global_step = tf.Variable(0, trainable=False)
 			starter_learning_rate = 0.001
 			learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
 													   1000, 0.96, staircase=True)
 			classifier_opt = tf.train.AdamOptimizer(learning_rate)
-			if self.debias:
-				adversary_opt = tf.train.AdamOptimizer(learning_rate)
 
 			classifier_vars = [var for var in tf.trainable_variables() if 'classifier_model' in var.name]
-			if self.debias:
-				adversary_vars = [var for var in tf.trainable_variables() if 'adversary_model' in var.name]
-				# Update classifier parameters
-				adversary_grads = {var: grad for (grad, var) in adversary_opt.compute_gradients(pred_protected_attributes_loss,
-																					  var_list=classifier_vars)}
+
 			normalize = lambda x: x / (tf.norm(x) + np.finfo(np.float32).tiny)
 
 			classifier_grads = []
 			for (grad,var) in classifier_opt.compute_gradients(pred_labels_loss, var_list=classifier_vars):
-				if self.debias:
-					unit_adversary_grad = normalize(adversary_grads[var])
-					grad -= tf.reduce_sum(grad * unit_adversary_grad) * unit_adversary_grad
-					grad -= self.adversary_loss_weight * adversary_grads[var]
 				classifier_grads.append((grad, var))
 			classifier_minimizer = classifier_opt.apply_gradients(classifier_grads, global_step=global_step)
-
-			if self.debias:
-				# Update adversary parameters
-				adversary_minimizer = adversary_opt.minimize(pred_protected_attributes_loss, var_list=adversary_vars, global_step=global_step)
 
 			self.sess.run(tf.global_variables_initializer())
 			self.sess.run(tf.local_variables_initializer())
@@ -184,21 +150,11 @@ class PlainModel(Transformer):
 									   self.true_labels_ph: batch_labels,
 									   self.protected_attributes_ph: batch_protected_attributes,
 									   self.keep_prob: 0.8}
-					if self.debias:
-						_, _, pred_labels_loss_value, pred_protected_attributes_loss_vale = self.sess.run([classifier_minimizer,
-									   adversary_minimizer,
-									   pred_labels_loss,
-									   pred_protected_attributes_loss], feed_dict=batch_feed_dict)
-						if i % 200 == 0:
-							print("epoch %d; iter: %d; batch classifier loss: %f; batch adversarial loss: %f" % (epoch, i, pred_labels_loss_value,
-																					 pred_protected_attributes_loss_vale))
-					else:
-						_, pred_labels_loss_value = self.sess.run(
-							[classifier_minimizer,
-							 pred_labels_loss], feed_dict=batch_feed_dict)
-						if i % 200 == 0:
-							print("epoch %d; iter: %d; batch classifier loss: %f" % (
-							epoch, i, pred_labels_loss_value))
+
+					_, pred_labels_loss_value = self.sess.run(
+						[classifier_minimizer,
+						 pred_labels_loss], feed_dict=batch_feed_dict)
+				print("epoch %d; batch classifier loss: %f" % (epoch, pred_labels_loss_value))
 		return self
 
 	def predict(self, dataset):
