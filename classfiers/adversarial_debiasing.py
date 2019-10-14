@@ -31,7 +31,6 @@ class AdversarialDebiasing(Transformer):
                  adversary_loss_weight=0.1,
                  num_epochs=50,
                  batch_size=128,
-                 classifier_num_hidden_units=200,
                  debias=True):
         """
         Args:
@@ -66,7 +65,6 @@ class AdversarialDebiasing(Transformer):
         self.adversary_loss_weight = adversary_loss_weight
         self.num_epochs = num_epochs
         self.batch_size = batch_size
-        self.classifier_num_hidden_units = classifier_num_hidden_units
         self.debias = debias
 
         self.features_dim = None
@@ -76,21 +74,14 @@ class AdversarialDebiasing(Transformer):
         self.pred_labels = None
 
     def _classifier_model(self, features, features_dim, keep_prob):
-        """Compute the classifier predictions for the outcome variable.
-        """
+
         with tf.variable_scope("classifier_model"):
-            W1 = tf.get_variable('W1', [features_dim, self.classifier_num_hidden_units],
+
+            W = tf.get_variable('W', [features_dim, 1],
                                   initializer=tf.contrib.layers.xavier_initializer())
-            b1 = tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='b1')
+            b = tf.Variable(tf.zeros(shape=[1]), name='b')
 
-            h1 = tf.nn.relu(tf.matmul(features, W1) + b1)
-            h1 = tf.nn.dropout(h1, keep_prob=keep_prob)
-
-            W2 = tf.get_variable('W2', [self.classifier_num_hidden_units, 1],
-                                 initializer=tf.contrib.layers.xavier_initializer())
-            b2 = tf.Variable(tf.zeros(shape=[1]), name='b2')
-
-            pred_logit = tf.matmul(h1, W2) + b2
+            pred_logit = tf.matmul(features, W) + b
             pred_label = tf.sigmoid(pred_logit)
 
         return pred_label, pred_logit

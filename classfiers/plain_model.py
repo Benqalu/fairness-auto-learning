@@ -14,9 +14,8 @@ class PlainModel(Transformer):
 				 seed=None,
 				 adversary_loss_weight=0.1,
 				 num_epochs=50,
-				 batch_size=128,
-				 classifier_num_hidden_units=200,
-				 classifier_num_hidden_layers=1):
+				 batch_size=128
+				 ):
 		super(PlainModel, self).__init__(
 			unprivileged_groups=unprivileged_groups,
 			privileged_groups=privileged_groups)
@@ -34,8 +33,6 @@ class PlainModel(Transformer):
 		self.adversary_loss_weight = adversary_loss_weight
 		self.num_epochs = num_epochs
 		self.batch_size = batch_size
-		self.classifier_num_hidden_units = classifier_num_hidden_units
-		self.classifier_num_hidden_layers = classifier_num_hidden_layers
 
 		self.features_dim = None
 		self.features_ph = None
@@ -46,36 +43,49 @@ class PlainModel(Transformer):
 	def _classifier_model(self, features, features_dim, keep_prob):
 
 		with tf.variable_scope("classifier_model"):
-			Wa = tf.get_variable('Wa', [features_dim, self.classifier_num_hidden_units],
+
+			W = tf.get_variable('W', [features_dim, 1],
 								  initializer=tf.contrib.layers.xavier_initializer())
-			ba = tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='ba')
+			b = tf.Variable(tf.zeros(shape=[1]), name='b')
 
-			h=[]
-			b=[]
-			W=[]
-			for i in range(0,self.classifier_num_hidden_layers):
-
-				if i==0:
-					h.append(tf.nn.relu(tf.matmul(features, Wa) + ba))
-				else:
-					h.append(tf.nn.relu(tf.matmul(h[-1], W[-1]) + b[-1]))
-				h[-1]=tf.nn.dropout(h[-1], keep_prob=keep_prob)
-
-				if i<self.classifier_num_hidden_layers-1:
-
-					b.append(tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='b%d'%(i+1)))
-
-					W.append(tf.get_variable('W%d'%(i+1), [self.classifier_num_hidden_units, self.classifier_num_hidden_units],
-									 initializer=tf.contrib.layers.xavier_initializer()))
-
-			Wz = tf.get_variable('Wz', [self.classifier_num_hidden_units, 1],
-								 initializer=tf.contrib.layers.xavier_initializer())
-			bz = tf.Variable(tf.zeros(shape=[1]), name='bz')
-
-			pred_logit = tf.matmul(h[-1], Wz) + bz
+			pred_logit = tf.matmul(features, W) + b
 			pred_label = tf.sigmoid(pred_logit)
 
 		return pred_label, pred_logit
+
+	# def _classifier_model(self, features, features_dim, keep_prob):
+
+	# 	with tf.variable_scope("classifier_model"):
+	# 		Wa = tf.get_variable('Wa', [features_dim, self.classifier_num_hidden_units],
+	# 							  initializer=tf.contrib.layers.xavier_initializer())
+	# 		ba = tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='ba')
+
+	# 		h=[]
+	# 		b=[]
+	# 		W=[]
+	# 		for i in range(0,self.classifier_num_hidden_layers):
+
+	# 			if i==0:
+	# 				h.append(tf.nn.relu(tf.matmul(features, Wa) + ba))
+	# 			else:
+	# 				h.append(tf.nn.relu(tf.matmul(h[-1], W[-1]) + b[-1]))
+	# 			h[-1]=tf.nn.dropout(h[-1], keep_prob=keep_prob)
+
+	# 			if i<self.classifier_num_hidden_layers-1:
+
+	# 				b.append(tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='b%d'%(i+1)))
+
+	# 				W.append(tf.get_variable('W%d'%(i+1), [self.classifier_num_hidden_units, self.classifier_num_hidden_units],
+	# 								 initializer=tf.contrib.layers.xavier_initializer()))
+
+	# 		Wz = tf.get_variable('Wz', [self.classifier_num_hidden_units, 1],
+	# 							 initializer=tf.contrib.layers.xavier_initializer())
+	# 		bz = tf.Variable(tf.zeros(shape=[1]), name='bz')
+
+	# 		pred_logit = tf.matmul(h[-1], Wz) + bz
+	# 		pred_label = tf.sigmoid(pred_logit)
+
+	# 	return pred_label, pred_logit
 
 	def _adversary_model(self, pred_logits, true_labels):
 		"""Compute the adversary predictions for the protected attribute.
