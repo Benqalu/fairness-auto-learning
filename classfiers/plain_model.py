@@ -53,58 +53,7 @@ class PlainModel(Transformer):
 
 		return pred_label, pred_logit
 
-	# def _classifier_model(self, features, features_dim, keep_prob):
-
-	# 	with tf.variable_scope("classifier_model"):
-	# 		Wa = tf.get_variable('Wa', [features_dim, self.classifier_num_hidden_units],
-	# 							  initializer=tf.contrib.layers.xavier_initializer())
-	# 		ba = tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='ba')
-
-	# 		h=[]
-	# 		b=[]
-	# 		W=[]
-	# 		for i in range(0,self.classifier_num_hidden_layers):
-
-	# 			if i==0:
-	# 				h.append(tf.nn.relu(tf.matmul(features, Wa) + ba))
-	# 			else:
-	# 				h.append(tf.nn.relu(tf.matmul(h[-1], W[-1]) + b[-1]))
-	# 			h[-1]=tf.nn.dropout(h[-1], keep_prob=keep_prob)
-
-	# 			if i<self.classifier_num_hidden_layers-1:
-
-	# 				b.append(tf.Variable(tf.zeros(shape=[self.classifier_num_hidden_units]), name='b%d'%(i+1)))
-
-	# 				W.append(tf.get_variable('W%d'%(i+1), [self.classifier_num_hidden_units, self.classifier_num_hidden_units],
-	# 								 initializer=tf.contrib.layers.xavier_initializer()))
-
-	# 		Wz = tf.get_variable('Wz', [self.classifier_num_hidden_units, 1],
-	# 							 initializer=tf.contrib.layers.xavier_initializer())
-	# 		bz = tf.Variable(tf.zeros(shape=[1]), name='bz')
-
-	# 		pred_logit = tf.matmul(h[-1], Wz) + bz
-	# 		pred_label = tf.sigmoid(pred_logit)
-
-	# 	return pred_label, pred_logit
-
-	def _adversary_model(self, pred_logits, true_labels):
-		"""Compute the adversary predictions for the protected attribute.
-		"""
-		with tf.variable_scope("adversary_model"):
-			c = tf.get_variable('c', initializer=tf.constant(1.0))
-			s = tf.sigmoid((1 + tf.abs(c)) * pred_logits)
-
-			W2 = tf.get_variable('W2', [3, 1],
-								 initializer=tf.contrib.layers.xavier_initializer())
-			b2 = tf.Variable(tf.zeros(shape=[1]), name='b2')
-
-			pred_protected_attribute_logit = tf.matmul(tf.concat([s, s * true_labels, s * (1.0 - true_labels)], axis=1), W2) + b2
-			pred_protected_attribute_label = tf.sigmoid(pred_protected_attribute_logit)
-
-		return pred_protected_attribute_label, pred_protected_attribute_logit
-
 	def fit(self, dataset):
-
 		if self.seed is not None:
 			np.random.seed(self.seed)
 
@@ -168,15 +117,6 @@ class PlainModel(Transformer):
 		return self
 
 	def predict(self, dataset):
-		"""Obtain the predictions for the provided dataset using the fair
-		classifier learned.
-
-		Args:
-			dataset (BinaryLabelDataset): Dataset containing labels that needs
-				to be transformed.
-		Returns:
-			dataset (BinaryLabelDataset): Transformed dataset.
-		"""
 		if self.seed is not None:
 			np.random.seed(self.seed)
 

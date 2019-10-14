@@ -174,7 +174,7 @@ def test_German_Adversarial():
 
 def test_German_Plain():
 
-	dataset_orig = load_preproc_data_adult()
+	dataset_orig = load_preproc_data_german()
 
 	privileged_groups = [{'sex': 1}]
 	unprivileged_groups = [{'sex': 0}]
@@ -259,5 +259,5 @@ def test_German_Plain():
 	tf.reset_default_graph()
 
 if __name__=='__main__':
-	test_German_Adversarial()
-	# test_German_Plain()
+	# test_German_Adversarial()
+	test_German_Plain()
