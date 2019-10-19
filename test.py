@@ -25,7 +25,7 @@ import tensorflow as tf
 
 def test_German_Adversarial():
 
-	dataset_orig = load_preproc_data_german()
+	dataset_orig = GermanDataset()
 
 	privileged_groups = [{'sex': 1}]
 	unprivileged_groups = [{'sex': 0}]
@@ -71,7 +71,7 @@ def test_German_Adversarial():
 							privileged_groups = privileged_groups,
 							unprivileged_groups = unprivileged_groups,
 							scope_name='plain_classifier',
-							num_epochs=500,
+							num_epochs=5000,
 							debias=False,
 							sess=sess)
 	plain_model.fit(dataset_orig_train)
@@ -115,7 +115,7 @@ def test_German_Adversarial():
 						privileged_groups = privileged_groups,
 						unprivileged_groups = unprivileged_groups,
 						scope_name='debiased_classifier',
-						num_epochs=500,
+						num_epochs=00,
 						debias=True,
 						sess=sess)
 	
@@ -220,7 +220,7 @@ def test_German_Plain():
 				privileged_groups = privileged_groups,
 				unprivileged_groups = unprivileged_groups,
 				scope_name='plain_classifier',
-				num_epochs=500,
+				num_epochs=5000,
 				sess=sess)
 	plain_model.fit(dataset_orig_train)
 
@@ -259,5 +259,5 @@ def test_German_Plain():
 	tf.reset_default_graph()
 
 if __name__=='__main__':
-	# test_German_Adversarial()
-	test_German_Plain()
+	test_German_Adversarial()
+	# test_German_Plain()

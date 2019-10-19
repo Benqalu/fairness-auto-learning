@@ -13,7 +13,7 @@ class PlainModel(Transformer):
 				 sess,
 				 seed=None,
 				 adversary_loss_weight=0.1,
-				 num_epochs=50,
+				 num_epochs=1000,
 				 batch_size=128
 				 ):
 		super(PlainModel, self).__init__(
@@ -80,7 +80,7 @@ class PlainModel(Transformer):
 			global_step = tf.Variable(0, trainable=False)
 			starter_learning_rate = 0.001
 			learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
-													   1000, 0.96, staircase=True)
+													   250, 0.96, staircase=True)
 			classifier_opt = tf.train.AdamOptimizer(learning_rate)
 
 			classifier_vars = [var for var in tf.trainable_variables() if 'classifier_model' in var.name]
