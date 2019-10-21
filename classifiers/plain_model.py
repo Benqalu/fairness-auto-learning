@@ -14,7 +14,8 @@ class PlainModel(Transformer):
 				 seed=None,
 				 adversary_loss_weight=0.1,
 				 num_epochs=1000,
-				 batch_size=128
+				 batch_size=128,
+				 info=False
 				 ):
 		super(PlainModel, self).__init__(
 			unprivileged_groups=unprivileged_groups,
@@ -39,6 +40,8 @@ class PlainModel(Transformer):
 		self.protected_attributes_ph = None
 		self.true_labels_ph = None
 		self.pred_labels = None
+
+		self.info=info
 
 	def _classifier_model(self, features, features_dim, keep_prob):
 
@@ -113,7 +116,8 @@ class PlainModel(Transformer):
 					_, pred_labels_loss_value = self.sess.run(
 						[classifier_minimizer,
 						 pred_labels_loss], feed_dict=batch_feed_dict)
-				print("epoch %d; batch classifier loss: %f" % (epoch, pred_labels_loss_value))
+				if self.info:
+					print("epoch %d; batch classifier loss: %f" % (epoch, pred_labels_loss_value))
 		return self
 
 	def predict(self, dataset):
@@ -146,6 +150,7 @@ class PlainModel(Transformer):
 		# Mutated, fairer dataset with new labels
 		dataset_new = dataset.copy(deepcopy = True)
 		dataset_new.labels = (np.array(pred_labels)>0.5).astype(np.float64).reshape(-1,1)
+		dataset_new.scores = np.array(pred_labels).astype(np.float64).reshape(-1,1)
 
 		# Map the dataset labels to back to their original values.
 		temp_labels = dataset_new.labels.copy()

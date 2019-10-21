@@ -31,7 +31,8 @@ class AdversarialDebiasing(Transformer):
                  adversary_loss_weight=0.1,
                  num_epochs=50,
                  batch_size=128,
-                 debias=True):
+                 debias=True,
+                 info=False):
         """
         Args:
             unprivileged_groups (tuple): Representation for unprivileged groups
@@ -72,6 +73,8 @@ class AdversarialDebiasing(Transformer):
         self.protected_attributes_ph = None
         self.true_labels_ph = None
         self.pred_labels = None
+
+        self.info=info
 
     def _classifier_model(self, features, features_dim, keep_prob):
 
@@ -144,7 +147,7 @@ class AdversarialDebiasing(Transformer):
             global_step = tf.Variable(0, trainable=False)
             starter_learning_rate = 0.001
             learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step,
-                                                       1000, 0.96, staircase=True)
+                                                       250, 0.96, staircase=True)
             classifier_opt = tf.train.AdamOptimizer(learning_rate)
             if self.debias:
                 adversary_opt = tf.train.AdamOptimizer(learning_rate)
@@ -192,7 +195,7 @@ class AdversarialDebiasing(Transformer):
                                        adversary_minimizer,
                                        pred_labels_loss,
                                        pred_protected_attributes_loss], feed_dict=batch_feed_dict)
-                        if i % 200 == 0:
+                        if self.info and i % 200 == 0:
                             print("epoch %d; iter: %d; batch classifier loss: %f; batch adversarial loss: %f" % (epoch, i, pred_labels_loss_value,pred_protected_attributes_loss_vale))
                     else:
                         _, pred_labels_loss_value = self.sess.run(
@@ -243,6 +246,7 @@ class AdversarialDebiasing(Transformer):
         # Mutated, fairer dataset with new labels
         dataset_new = dataset.copy(deepcopy = True)
         dataset_new.labels = (np.array(pred_labels)>0.5).astype(np.float64).reshape(-1,1)
+        dataset_new.scores = np.array(pred_labels).astype(np.float64).reshape(-1,1)
 
         # Map the dataset labels to back to their original values.
         temp_labels = dataset_new.labels.copy()
