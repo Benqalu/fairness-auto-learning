@@ -11,6 +11,7 @@ import sys,os,copy
 import numpy as np
 import tensorflow as tf
 from collections import OrderedDict
+from time import time
 
 from sklearn.preprocessing import MaxAbsScaler,MinMaxScaler
 
@@ -330,6 +331,8 @@ if __name__=='__main__':
 		pass
 
 	os.system('clear')
+
+	timestamp=time()
 	
 	for pre_process in range(5):
 		for in_process in range(4):
@@ -364,6 +367,6 @@ if __name__=='__main__':
 						print('Had an error, retrying...')
 
 
-				f=open('result_%s_%s.txt'%(dataset_name,protected_attribute_name),'a')
+				f=open('./results/result_%s_%s_ts%s.txt'%(dataset_name,protected_attribute_name,str(timestamp)),'a')
 				f.write(str([pre_process,in_process,post_process])+'\t'+str(algorithms)+'\t'+str(report)+'\n')
 				f.close()
