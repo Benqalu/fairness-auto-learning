@@ -12,8 +12,9 @@ import numpy as np
 import tensorflow as tf
 from collections import OrderedDict
 from time import time
-
+from tools.calculate_entropy import get_entropy
 from sklearn.preprocessing import MaxAbsScaler,MinMaxScaler
+from random import uniform
 
 #Metrics & Data
 from aif360.metrics import BinaryLabelDatasetMetric
@@ -140,7 +141,7 @@ def LoadData(dataset_name,protected_attribute_name,raw=True):
 	}
 
 	if optim_options==None:
-		print('No such dataset & group option.')
+		print('No such dataset & group option:', dataset_name, protected_attribute_name)
 		exit()
 
 	return dataset_original,protected_attribute_set[protected_attribute_name][0],protected_attribute_set[protected_attribute_name][1],optim_options
@@ -214,8 +215,8 @@ def calculate(pre_process,in_process,post_process,dataset_original,privileged_gr
 		privileged_groups=privileged_groups,
 		unprivileged_groups=unprivileged_groups
 	)
-	print('After Pre-process:')
-	print(report)
+	# print('After Pre-process:')
+	# print(report)
 
 	#In-processing begin
 	dataset_after_in_train=copy.deepcopy(dataset_after_pre_train)
@@ -266,8 +267,8 @@ def calculate(pre_process,in_process,post_process,dataset_original,privileged_gr
 		privileged_groups=privileged_groups,
 		unprivileged_groups=unprivileged_groups
 	)
-	print('After In-process:')
-	print(report)
+	# print('After In-process:')
+	# print(report)
 
 	#Post-process begin
 	dataset_after_post_train=copy.deepcopy(dataset_after_in_train)
@@ -309,19 +310,84 @@ def calculate(pre_process,in_process,post_process,dataset_original,privileged_gr
 		unprivileged_groups=unprivileged_groups
 	)
 
-	print('After Post-process:')
-	print(report)
-
+	# print('After Post-process:')
+	# print(report)
 
 	return report
 
-if __name__=='__main__':
+def try_combination(dataname,attr,pre=0,inp=0,post=0,creating_dataset=None):
 
-	dataset_name="german"
-	protected_attribute_name="sex"
+	dataset_name=dataname
+	protected_attribute_name=attr
 	dataset_orig,privileged_groups,unprivileged_groups,optim_options = LoadData(dataset_name,protected_attribute_name,raw=False)
 
-	pre_process=4
+	vector=[]
+
+	if creating_dataset!=None:
+		size=creating_dataset['sample_size']
+		portion=1.0*size/len(dataset_orig.labels)
+		dataset_orig,_=dataset_orig.split([portion], shuffle=True)
+		entropy=get_entropy(
+			dataset_orig,
+			sensitive_attr=attr,
+			top_n=creating_dataset['top_number']
+		)
+		vector+=entropy
+
+	pre_process=pre
+	in_process=inp
+	post_process=post
+
+	error_count=0
+
+	while True:
+		try:
+			algorithms=[
+				pre_process_algorithms[pre_process],
+				in_process_algorithms[in_process],
+				post_process_algorithms[post_process]
+			]
+			print('\n','-'*10,algorithms,'-'*10)
+
+			report=calculate(
+				pre_process=pre_process,
+				in_process=in_process,
+				post_process=post_process,
+				dataset_original=copy.deepcopy(dataset_orig),
+				privileged_groups=copy.deepcopy(privileged_groups),
+				unprivileged_groups=copy.deepcopy(unprivileged_groups),
+				optim_options=copy.deepcopy(optim_options),
+				in_process_epochs=1000
+			)
+			if not report['Balanced_Acc']<=0.5:
+				break
+		except:
+			print('Had an error, retrying...')
+			error_count+=1
+			if error_count>10:
+				print('Fuck, I give up!')
+				break
+
+	if creating_dataset==None:
+		return report
+	else:
+		vector.append(report['TPR'])
+		vector.append(report['TNR'])
+		vector.append(report['FPR'])
+		vector.append(report['FNR'])
+		vector.append(report['Balanced_Acc'])
+		vector.append(report['Acc'])
+		vector.append(report["Statistical parity difference"])
+		vector.append(report["Disparate impact"])
+		vector.append(report["Equal opportunity difference"])
+		vector.append(report["Average odds difference"])
+		vector.append(report["Theil index"])
+		vector.append(report["United Fairness"])
+		return vector
+
+if __name__=='__main__':
+
+	pre_process=1
 	in_process=0
 	post_process=0
 
@@ -332,41 +398,41 @@ if __name__=='__main__':
 
 	os.system('clear')
 
-	timestamp=time()
+	dataname='adult'
+	# attr='sex'
+
+	sensitive_attribute={
+		'adult':['sex','race'],
+		'german':['sex','age'],
+		'compas':['sex','race']
+	}
 	
-	for pre_process in range(5):
-		for in_process in range(4):
-			for post_process in range(4):
+	while True:
 
-				while True:
+		approach=[[0,0,0,0,0],[0,0,0,0],[0,0,0,0]]
 
-					try:
+		pre_process=int(uniform(0,5))
+		in_process=int(uniform(0,4))
+		post_process=int(uniform(0,4))
+		attr=sensitive_attribute[dataname][int(uniform(0,2))]
 
-						algorithms=[
-							pre_process_algorithms[pre_process],
-							in_process_algorithms[in_process],
-							post_process_algorithms[post_process]
-						]
+		approach[0][pre_process]=1
+		approach[1][in_process]=1
+		approach[2][post_process]=1
 
-						print('\n','-'*10,algorithms,'-'*10)
+		vector=try_combination(
+			dataname=dataname,
+			attr=attr,
+			pre=pre_process,
+			inp=in_process,
+			post=post_process,
+			creating_dataset={
+				'sample_size':1000,
+				'top_number':5,
+				'with_label':True
+			}
+		)
 
-						report=calculate(
-							pre_process=pre_process,
-							in_process=in_process,
-							post_process=post_process,
-							dataset_original=copy.deepcopy(dataset_orig),
-							privileged_groups=copy.deepcopy(privileged_groups),
-							unprivileged_groups=copy.deepcopy(unprivileged_groups),
-							optim_options=copy.deepcopy(optim_options),
-							in_process_epochs=1000
-						)
-
-						break
-
-					except:
-						print('Had an error, retrying...')
-
-
-				f=open('./results/result_%s_%s_ts%s.txt'%(dataset_name,protected_attribute_name,str(timestamp)),'a')
-				f.write(str([pre_process,in_process,post_process])+'\t'+str(algorithms)+'\t'+str(report)+'\n')
-				f.close()
+		f=open('./results/vectors_%s_%s_.txt'%(dataname,attr),'a')
+		f.write(str(approach)+'\t'+str(vector)+'\n')
+		f.close()
