@@ -364,7 +364,7 @@ def try_combination(dataname,attr,pre=0,inp=0,post=0,creating_dataset=None):
 		except:
 			print('Had an error, retrying...')
 			error_count+=1
-			if error_count>30:
+			if error_count>20:
 				print('Fuck, I give up!')
 				break
 
@@ -407,32 +407,32 @@ if __name__=='__main__':
 		'compas':['sex','race']
 	}
 	
-	while True:
+	# while True:
 
-		approach=[[0,0,0,0,0],[0,0,0,0],[0,0,0,0]]
+	approach=[[0,0,0,0,0],[0,0,0,0],[0,0,0,0]]
 
-		pre_process=int(uniform(0,5))
-		in_process=int(uniform(0,4))
-		post_process=int(uniform(0,4))
-		attr=sensitive_attribute[dataname][int(uniform(0,2))]
+	pre_process=int(uniform(0,5))
+	in_process=int(uniform(0,4))
+	post_process=int(uniform(0,4))
+	attr=sensitive_attribute[dataname][int(uniform(0,2))]
 
-		approach[0][pre_process]=1
-		approach[1][in_process]=1
-		approach[2][post_process]=1
+	approach[0][pre_process]=1
+	approach[1][in_process]=1
+	approach[2][post_process]=1
 
-		vector=try_combination(
-			dataname=dataname,
-			attr=attr,
-			pre=pre_process,
-			inp=in_process,
-			post=post_process,
-			creating_dataset={
-				'sample_size':1000,
-				'top_number':5,
-				'with_label':True
-			}
-		)
+	vector=try_combination(
+		dataname=dataname,
+		attr=attr,
+		pre=pre_process,
+		inp=in_process,
+		post=post_process,
+		creating_dataset={
+			'sample_size':1000,
+			'top_number':5,
+			'with_label':True
+		}
+	)
 
-		f=open('./results/vectors_%s_%s_.txt'%(dataname,attr),'a')
-		f.write(str(approach)+'\t'+str(vector)+'\n')
-		f.close()
+	f=open('./results/vectors_%s_%s_.txt'%(dataname,attr),'a')
+	f.write(str(approach)+'\t'+str(vector)+'\n')
+	f.close()
