@@ -364,7 +364,7 @@ def try_combination(dataname,attr,pre=0,inp=0,post=0,creating_dataset=None):
 		except:
 			print('Had an error, retrying...')
 			error_count+=1
-			if error_count>10:
+			if error_count>30:
 				print('Fuck, I give up!')
 				break
 
