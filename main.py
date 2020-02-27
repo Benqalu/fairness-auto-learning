@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Oct 14 13:38:14 2019
-
-@author: huihuiliu
-"""
 
 # Load all necessary packages
 import sys,os,copy
@@ -14,7 +9,7 @@ from collections import OrderedDict
 from time import time
 from tools.calculate_entropy import get_entropy
 from sklearn.preprocessing import MaxAbsScaler,MinMaxScaler
-from random import uniform
+from numpy.random import uniform
 
 #Metrics & Data
 from aif360.metrics import BinaryLabelDatasetMetric
@@ -315,7 +310,7 @@ def calculate(pre_process,in_process,post_process,dataset_original,privileged_gr
 
 	return report
 
-def try_combination(dataname,attr,pre=0,inp=0,post=0,creating_dataset=None):
+def try_combination(dataname,attr,pre=0,inp=0,post=0,creating_dataset=None,existing_dataset=None):
 
 	dataset_name=dataname
 	protected_attribute_name=attr
@@ -323,16 +318,19 @@ def try_combination(dataname,attr,pre=0,inp=0,post=0,creating_dataset=None):
 
 	vector=[]
 
-	if creating_dataset!=None:
+	if existing_dataset!=None:
+		dataset_orig=existing_dataset
+	elif creating_dataset!=None:
 		size=creating_dataset['sample_size']
 		portion=1.0*size/len(dataset_orig.labels)
 		dataset_orig,_=dataset_orig.split([portion], shuffle=True)
-		entropy=get_entropy(
-			dataset_orig,
-			sensitive_attr=attr,
-			top_n=creating_dataset['top_number']
-		)
-		vector+=entropy
+	
+	entropy=get_entropy(
+		dataset_orig,
+		sensitive_attr=attr,
+		top_n=creating_dataset['top_number']
+	)
+	vector+=entropy
 
 	pre_process=pre
 	in_process=inp
@@ -359,17 +357,16 @@ def try_combination(dataname,attr,pre=0,inp=0,post=0,creating_dataset=None):
 				optim_options=copy.deepcopy(optim_options),
 				in_process_epochs=1000
 			)
-			if not report['Balanced_Acc']<=0.5:
-				break
+			break
 		except:
 			print('Had an error, retrying...')
 			error_count+=1
 			if error_count>20:
 				print('Fuck, I give up!')
-				break
+				return None,None
 
 	if creating_dataset==None:
-		return report
+		return report,None
 	else:
 		vector.append(report['TPR'])
 		vector.append(report['TNR'])
@@ -383,56 +380,49 @@ def try_combination(dataname,attr,pre=0,inp=0,post=0,creating_dataset=None):
 		vector.append(report["Average odds difference"])
 		vector.append(report["Theil index"])
 		vector.append(report["United Fairness"])
-		return vector
+		return vector,dataset_orig
 
 if __name__=='__main__':
 
-	pre_process=1
-	in_process=0
-	post_process=0
-
-	try:
-		os.remove('result_%s_%s.txt'%(dataset_name,protected_attribute_name))
-	except:
-		pass
-
-	os.system('clear')
-
-	dataname='adult'
-	# attr='sex'
+	dataname=sys.argv[1].strip()
+	attribute=int(sys.argv[2].strip())
 
 	sensitive_attribute={
 		'adult':['sex','race'],
 		'german':['sex','age'],
 		'compas':['sex','race']
 	}
-	
-	# while True:
 
-	approach=[[0,0,0,0,0],[0,0,0,0],[0,0,0,0]]
+	attr=sensitive_attribute[dataname][attribute]
 
-	pre_process=int(uniform(0,5))
-	in_process=int(uniform(0,4))
-	post_process=int(uniform(0,4))
-	attr=sensitive_attribute[dataname][int(uniform(0,2))]
+	print(dataname,attr)
 
-	approach[0][pre_process]=1
-	approach[1][in_process]=1
-	approach[2][post_process]=1
+	for pre in range(5):
+		for inp in range(4):
+			for post in range(4):
+				approach=[[0,0,0,0,0],[0,0,0,0],[0,0,0,0]]
+				approach[0][pre]=1
+				approach[1][inp]=1
+				approach[2][post]=1
+				if pre==0 and inp==0 and post==0:
+					existing=None
+				while True:
+					vector,existing=try_combination(
+						dataname=dataname,
+						attr=attr,
+						pre=pre,
+						inp=inp,
+						post=post,
+						creating_dataset={
+							'sample_size':1000,
+							'top_number':5,
+							'with_label':True
+						},
+						existing_dataset=existing
+					)
+					if vector!=None:
+						break
 
-	vector=try_combination(
-		dataname=dataname,
-		attr=attr,
-		pre=pre_process,
-		inp=in_process,
-		post=post_process,
-		creating_dataset={
-			'sample_size':1000,
-			'top_number':5,
-			'with_label':True
-		}
-	)
-
-	f=open('./results/vectors_%s_%s_.txt'%(dataname,attr),'a')
-	f.write(str(approach)+'\t'+str(vector)+'\n')
-	f.close()
+				f=open('./results/vectors_%s_%s_.txt'%(dataname,attr),'a')
+				f.write(str(approach)+'\t'+str(vector)+'\n')
+				f.close()
