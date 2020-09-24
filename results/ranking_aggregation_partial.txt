@@ -1,5 +1,0 @@
-dictformat_compas_race_to_compas_race	(0.40, Acc)	(0.60, AOD)	0.2408
-dictformat_compas_race_to_compas_race	(0.50, Acc)	(0.50, AOD)	0.2297
-dictformat_compas_race_to_compas_race	(0.60, Acc)	(0.40, AOD)	0.2227
-dictformat_compas_race_to_compas_race	(0.40, Acc)	(0.60, DI)	0.2497
-dictformat_compas_race_to_compas_race	(0.50, Acc)	(0.50, DI)	0.2284

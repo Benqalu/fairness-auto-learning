@@ -5,7 +5,7 @@ from RankingAggregator import RankingAggregator
 
 def parse(fname):
 	agg=RankingAggregator(datafile=fname)
-	alphas=[0.3,0.5,0.8]
+	alphas=[0.3,0.5,0.7]
 	betas=[1.0-alphas[i] for i in range(0,len(alphas))]
 	
 	for alpha, beta in zip(alphas,betas):
