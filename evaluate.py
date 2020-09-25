@@ -1,4 +1,4 @@
-import os
+import os,sys
 import numpy as np
 from RankingMetric import RankingMetric
 from RankingAggregator import RankingAggregator
@@ -10,6 +10,7 @@ def parse(fname):
 	
 	for alpha, beta in zip(alphas,betas):
 		tau_distances=[]
+		k_coverages=[[] for k in range(0,10)]
 		for accuracy_metric in agg._all_accuracy_metric:
 			for fairness_metric in agg._all_fairness_metric:
 				rankings_pred=agg.predicted_rankings(
@@ -29,12 +30,20 @@ def parse(fname):
 					true=rankings_true[i]
 					metric=RankingMetric(pred=pred,true=true)
 					tau_distances.append(metric.tau_distance())
+					for k in range(1,11):
+						k_coverages[k-1].append(metric.k_coverage(k=k))
+				print(accuracy_metric,fairness_metric,' '*10,end='\r')
+				sys.stdout.flush()
+
+		for k in range(0,10):
+			k_coverages[k]=float('%.4f'%(np.mean(k_coverages[k]).tolist()))
+
 		f=open('./results/ranking_aggregation_partial.txt','a')
 		f.write(
-			'%s'%(fname.split('/')[-1].split('.')[0])+'\t'+'(%.2f, %s)'%(alpha,'All')+'\t'+'(%.2f, %s)'%(beta,'All')+'\t'+'%.4f'%(np.mean(tau_distances))+'\n'
+			'%s'%(fname.split('/')[-1].split('.')[0])+'\t'+'(%.2f, %s)'%(alpha,'All')+'\t'+'(%.2f, %s)'%(beta,'All')+'\t'+'%.4f'%(np.mean(tau_distances))+'\t'+str(k_coverages)+'\n'
 		)
 		f.close()
-		print((float('%.2f'%alpha),'All'),'\t',(float('%.2f'%beta),'All'),'\t',np.mean(tau_distances))
+		print((float('%.2f'%alpha),'All'),'\t',(float('%.2f'%beta),'All'),'\t',np.mean(tau_distances),'\t',str(k_coverages))
 
 
 if __name__=='__main__':

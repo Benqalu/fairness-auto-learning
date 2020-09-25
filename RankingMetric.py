@@ -14,3 +14,8 @@ class RankingMetric(object):
 		for item in self._pred:
 			index_pred.append(ranking[item])
 		return (1-kendalltau(index_pred,index_true)[0])/2
+
+	def k_coverage(self,k):
+		true_top=set(self._true[:k])
+		pred_top=set(self._pred[:k])
+		return len(true_top&pred_top)/k
