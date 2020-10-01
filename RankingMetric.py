@@ -19,3 +19,26 @@ class RankingMetric(object):
 		true_top=set(self._true[:k])
 		pred_top=set(self._pred[:k])
 		return len(true_top&pred_top)/k
+
+	def k_minimum_difference(self,k,true_values,methods=None):
+		value_dict={}
+		if methods is None:
+			c=0
+			for i in range(5):
+				for j in range(3):
+					for l in range(4):
+						value_dict[(i,j,l)]=true_values[c]
+						c+=1
+		else:
+			for i in range(0,len(methods)):
+				value_dict[methods[i]]=true_values[i]
+				
+		best_value=max(true_values)
+
+		min_difference=float('inf')
+		for i in range(0,k):
+			diff=abs(value_dict[self._pred[i]]-best_value)
+			if diff<min_difference:
+				min_difference=diff
+
+		return min_difference

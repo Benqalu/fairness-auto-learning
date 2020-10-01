@@ -28,13 +28,23 @@ class RankingAggregator(object):
 				data[i]['pred'][metric]=np.array(data[i]['pred'][metric])
 		self._data=data
 
+	def get_true_values(self,metric):
+		ret=[]
+		for i in range(0,len(self._data)):
+			ret.append(self._data[i]['gt'][metric])
+		return ret
+
 	def _load_algorithm_tags(self):
-		tags=[]
-		for i in range(5):
-			for j in range(3):
-				for k in range(4):
-					tags.append((i,j,k))
-		self._algorithm_tags=tags
+		# tags=[]
+		# for i in range(5):
+		# 	for j in range(3):
+		# 		for k in range(4):
+		# 			tags.append((i,j,k))
+		# 
+		self._algorithm_tags=self._data[0]['methods']
+		
+	def get_algorithm_tags(self):
+		return self._algorithm_tags
 
 	def _get_matrix_truth(self,data,metric):
 		score=data['gt'][metric]
@@ -75,7 +85,24 @@ class RankingAggregator(object):
 			params=nxt
 		raise RuntimeError('did not converge')
 
-	def predicted_rankings(self,accuracy_metric,fairness_metric,alpha,beta):
+	def predicted_rankings(self,metric):
+		ret=[]
+		for i in range(0,len(self._data)):
+			matrix=self._get_matrix_prediction(data=self._data[i],metric=metric)
+			ranking_score=self._pairwised_ranking(pmat=matrix).tolist()
+			ranking=[x for _,x in sorted(zip(ranking_score,self._algorithm_tags))]
+			ret.append(ranking)
+		return ret
+
+	def true_rankings(self,metric):
+		ret=[]
+		for i in range(0,len(self._data)):
+			ranking_score=self._data[i]['gt'][metric].tolist()
+			ranking=[x for _,x in sorted(zip(ranking_score,self._algorithm_tags),reverse=True)]
+			ret.append(ranking)
+		return ret
+
+	def predicted_rankings_mix(self,accuracy_metric,fairness_metric,alpha,beta):
 		ret=[]
 		for i in range(0,len(self._data)):
 			matrix_accuracy=self._get_matrix_prediction(data=self._data[i],metric=accuracy_metric)
@@ -86,7 +113,7 @@ class RankingAggregator(object):
 			ret.append(ranking)
 		return ret
 
-	def true_rankings(self,accuracy_metric,fairness_metric,alpha,beta):
+	def true_rankings_mix(self,accuracy_metric,fairness_metric,alpha,beta):
 		ret=[]
 		for i in range(0,len(self._data)):
 			matrix_accuracy=self._get_matrix_truth(data=self._data[i],metric=accuracy_metric)
@@ -99,14 +126,14 @@ class RankingAggregator(object):
 
 
 if __name__=='__main__':
-	agg=RankingAggregator(datafile='./data/dictformat_compas_race_to_compas_race.pkl')
-	rankings_pred=agg.predicted_rankings(
+	agg=RankingAggregator(datafile='./data/dictformat_compas_race_to_adult_race.pkl')
+	rankings_pred=agg.predicted_rankings_mix(
 		accuracy_metric='Acc',
 		fairness_metric='DI',
 		alpha=1.0,
 		beta=1.0
 	)
-	rankings_true=agg.true_rankings(
+	rankings_true=agg.true_rankings_mix(
 		accuracy_metric='Acc',
 		fairness_metric='DI',
 		alpha=1.0,
